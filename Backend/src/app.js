@@ -4,15 +4,15 @@ const express = require("express")
 const app = express() // machine created 
 const cors = require("cors")
 const userRoutes = require("../src/routes/user.routes")
-
+const cookieParser = require("cookie-parser")
 
 
 
 app.use(cors())
 app.use(express.json())
 app.use(express.urlencoded({extended:true}))
+app.use(cookieParser())
 app.use("/user",userRoutes)
-
 app.get("/",(req,res)=>{
    res.send("this is get funcion")
 })
