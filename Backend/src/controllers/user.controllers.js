@@ -12,6 +12,15 @@ if(!errors.isEmpty()){
     })
 }
 const {fullname,email,password} = req.body
+
+const isUserExists = await userModel.findOne({email})
+
+    if(isUserExists){
+        return res.status(400).json({
+            message:'user already exists'
+        })
+    }
+
 // hash method is created in schema uesrmodel folder 
 const hashedPassword = await userModel.hashPassword(password)
 
