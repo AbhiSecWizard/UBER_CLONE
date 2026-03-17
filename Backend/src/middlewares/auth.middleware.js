@@ -1,5 +1,4 @@
 const userModel = require("../models/user.model")
-const bcrypt = require("bcrypt")
 const jwt = require("jsonwebtoken")
 const blacklistTokenModel = require("../models/blacklistTokenSchema")
 const captainModel = require("../models/captain.model")
@@ -44,6 +43,7 @@ try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
     const captain = await captainModel.findById(decoded._id)
     req.captain = captain
+    return next()
 }catch (error) {
      res.status(401).json({
         message:"Unauthorized"
