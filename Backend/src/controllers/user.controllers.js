@@ -2,7 +2,6 @@ const userModel = require("../models/user.model")
 const userService = require("../service/user.service")
 const {validationResult}= require("express-validator")
 const blacklistTokenModel = require("../models/blacklistTokenSchema")
-const jwt = require("jsonwebtoken")
 module.exports.registerUser = async (req,res,next)=>{
 // error handle from which is empty 
 const errors = validationResult(req)

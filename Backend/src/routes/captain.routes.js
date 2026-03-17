@@ -3,7 +3,6 @@ const router = express.Router()
 const {body} = require("express-validator")
 const captainController = require("../controllers/captain.controller")
 
-
 router.post('/register',[
     body('email').isEmail().withMessage("Invalid Email"),
     body('fullname.firstname').isLength({min:3}).withMessage('First name must be at least 3 characters'),
@@ -13,8 +12,19 @@ router.post('/register',[
     body('vehicle.capacity').isInt({min:1}).withMessage("Capacity must be at least 1 "),
     body('vehicle.vehicleType').isIn(['car','motercycle','auto']).withMessage('Invalid Vehicle Type')
 ],
-
 captainController.registerCaptain
 )
+router.post('/login',[
+    body('email').isEmail().withMessage("Invalid Email"),
+    body('password').isLength({min:6}).withMessage("password must be at least 6 character")
+],
+captainController.loginCaptain
+)
 
-module.exports = router 
+
+
+
+
+module.exports = router
+
+
