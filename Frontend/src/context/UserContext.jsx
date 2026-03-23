@@ -10,6 +10,7 @@ const [user,setUser] = useState({
         lastName:""
     }
 })
+
 return (
 <UserDataContext.Provider value={{setUser,user}}>
         {children}

@@ -1,20 +1,43 @@
-import { useEffect, useState } from "react"
-import { Link } from "react-router-dom"
-
+import { useContext, useEffect, useState } from "react"
+import { Link, useNavigate } from "react-router-dom"
+import { UserDataContext } from "../context/UserContext"
+import axios from "axios"
 const UserLogin = () => {
   const [email,setEmail] = useState('')
   const [password,setPassword] = useState('')
-  const [userData,setUserData] = useState({})
-
-function loginFormHandler(e){
+  const {user,setUser} =  useContext(UserDataContext)
+  const navigate = useNavigate()
+async function loginFormHandler(e){
 e.preventDefault()
-setUserData({
+
+const userData = {
   email:email,
   password:password
-})
+}
+try {
+  const response = await axios.post(
+    `${import.meta.env.VITE_BASE_URL}/user/login`,
+    userData
+  )
+
+  if (response.status === 200) {
+    const data = response.data
+    setUser(data.user)
+    localStorage.setItem('token', data.token)
+    navigate("/home")
+  }
+
+} catch (err) {
+  if (err.response?.status === 401) {
+    alert("Invalid Email or Password")
+  } else {
+    alert("Something went wrong")
+  }
+}
 setEmail('')
 setPassword('')
 }
+
   return (
     <div className='flex flex-col px-6'>
       <img

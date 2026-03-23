@@ -23,7 +23,6 @@ const captainSchema = new mongoose.Schema({
         password:{
             type:String,
             required:true,
-            unique:true,
             minlength:[6,"Password must be at least 6 characters"]
         },
         socketId:{
@@ -63,7 +62,7 @@ const captainSchema = new mongoose.Schema({
                 lng:{
                    type:Number
                 }
-            }
+            }         
 })
 captainSchema.methods.generateAuthToken = function () {
     const token = jwt.sign({ _id: this._id }, process.env.JWT_SECRET, { expiresIn: '24h' })
@@ -75,5 +74,5 @@ captainSchema.methods.comparePassword = async function (password) {
 captainSchema.statics.hashPassword = async function (password) {
     return await bcrypt.hash(password, 10);
 }
-const captainModel = mongoose.model('captiaon',captainSchema)
+const captainModel = mongoose.model('captian',captainSchema)
 module.exports = captainModel

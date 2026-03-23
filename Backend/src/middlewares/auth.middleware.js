@@ -3,26 +3,51 @@ const jwt = require("jsonwebtoken")
 const blacklistTokenModel = require("../models/blacklistTokenSchema")
 const captainModel = require("../models/captain.model")
 
+// module.exports.authUser = async (req, res, next) => {
+//     const token = req.cookies.token || req.headers.authorization?.split(' ')[ 1 ];
+//     if (!token) {
+//         return res.status(401).json({ message: "Unauthorized" });
+//     }
+//     const isBlacklisted = await blacklistTokenModel.findOne({token:token})
+//     if(isBlacklisted){
+//         return res.status(401).json({
+//             message:'Unauthorized'
+//         })
+//     }
+//     try {
+//         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+//         const user = await userModel.findById(decoded._id);
+//         req.user = user;
+//         return next();
+//     } catch (err) {
+//         return res.status(401).json({ message: "Unauthorized" });
+//     }
+// }
 module.exports.authUser = async (req, res, next) => {
-    const token = req.cookies.token || req.headers.authorization?.split(' ')[ 1 ];
-    if (!token) {
-        return res.status(401).json({ message: "Unauthorized" });
-    }
-    const isBlacklisted = await blacklistTokenModel.findOne({token:token})
-    if(isBlacklisted){
-        return res.status(401).json({
-            message:'Unauthorized'
-        })
-    }
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await userModel.findById(decoded._id);
-        req.user = user;
-        return next();
-    } catch (err) {
-        return res.status(401).json({ message: "Unauthorized" });
-    }
+
+const token = req.headers.authorization?.split(" ")[1];
+
+if (!token) {
+  return res.status(401).json({ message: "No token" });
 }
+
+try {
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const user = await userModel.findById(decoded._id);
+
+  if (!user) {
+    return res.status(401).json({ message: "User not found" });
+  }
+
+  req.user = user;
+  next();
+} catch (err) {
+  console.log("JWT ERROR:", err.message);
+  return res.status(401).json({ message: "Invalid token" });
+}
+
+}
+
 
 module.exports.authCaptain = async (req,res,next)=>{
 const token = req.cookies.token || req.headers.authorization?.split(' ')[ 1 ]

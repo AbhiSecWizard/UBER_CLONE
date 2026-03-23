@@ -30,7 +30,7 @@ module.exports.registerCaptain = async (req,res,next)=>{
     vehicleType: vehicle.vehicleType
     });
     const token = captain.generateAuthToken() 
-    res.status(201).json({token,captain})
+   return res.status(201).json({token,captain})
 }
 
 module.exports.loginCaptain = async(req,res,next)=>{
@@ -43,7 +43,7 @@ const errors = validationResult(req)
 const {email,password} = req.body
 const captain = await captainModel.findOne({email}).select("+password")
 if(!captain){
-    return res.json({
+    return res.status(401).json({
         message:"Invalid email or password"
     })
 }
@@ -51,6 +51,7 @@ const isMatch = await captain.comparePassword(password);
 if(!isMatch){
     return res.status(401).json({message:"Invalid email or password"})
 }
+
 const token = captain.generateAuthToken()
 res.cookie('token',token)
 res.status(200).json({token,captain})

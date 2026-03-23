@@ -1,70 +1,219 @@
-import { useState } from "react"
+import { useState, useContext } from "react"
 import { FaArrowRightLong } from "react-icons/fa6"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
+import axios from "axios"
+import { CaptainDataContext } from "../context/CaptainContext"
 
 const CaptainSignUp = () => {
-    const [email,setEmail] = useState('')
-    const [password,setPassword] = useState('')
-    const [userData,setUserData] = useState({})
-    const [firstName,setFirstName] = useState('')
-    const [lastName,setLastName] = useState('')
-  function loginFormHandler(e){
-  e.preventDefault()
-  setUserData({
-    fullName:{
-      firstName:firstName,
-      lastName:lastName
-    },
-    email:email,
-    password:password
 
-  })
-  setFirstName('')
-  setLastName('')
-  setEmail('')
-  setPassword('')
-}
-console.log(userData)
-return (
- <div className='flex flex-col min-h-screen px-6'>
+  const [email,setEmail] = useState('')
+  const [password,setPassword] = useState('')
+  const [firstName,setFirstName] = useState('')
+  const [lastName,setLastName] = useState('')
+  const [color,setColor] = useState('')
+  const [plate,setPlate] = useState('')
+  const [capacity,setCapacity] = useState('')
+  const [vehicleType,setVehicleType] = useState('')
+
+  const navigate = useNavigate()
+  const { captain, setCaptain } = useContext(CaptainDataContext) // ✅ fixed
+
+  // 🔥 handleChange
+  function handleChange(e){
+    const { name, value } = e.target
+
+    if(name === "firstname") setFirstName(value)
+    else if(name === "lastname") setLastName(value)
+    else if(name === "email") setEmail(value)
+    else if(name === "password") setPassword(value)
+    else if(name === "color") setColor(value)
+    else if(name === "plate") setPlate(value)
+    else if(name === "capacity") setCapacity(value)
+    else if(name === "vehicleType") setVehicleType(value)
+  }
+
+  // 🔥 Submit
+  async function loginFormHandler(e){
+    e.preventDefault()
+
+    // ✅ validation (important)
+    if(!vehicleType){
+      alert("Please select vehicle type")
+      return
+    }
+
+    const newCaptain = {
+      fullname: {
+        firstname: firstName,
+        lastname: lastName
+      },
+      email: email,
+      password: password,
+      vehicle: {
+        color: color,
+        plate: plate,
+        capacity: Number(capacity),
+        vehicleType: vehicleType // ✅ exact match
+      }
+    }
+
+    try {
+      console.log("Sending:", newCaptain) // 🔥 debug
+
+      const response = await axios.post(
+        `${import.meta.env.VITE_BASE_URL}/captain/register`,
+        newCaptain
+      )
+
+      if(response.status === 201){
+        const data = response.data
+
+        setCaptain(data.captain) // ✅ fixed
+        localStorage.setItem("token", data.token)
+        navigate("/captain-home")
+      }
+
+    } catch (err) {
+      console.log(err.response?.data || err.message)
+      alert(err.response?.data?.message || "Something went wrong")
+    }
+
+    // reset
+    setFirstName('')
+    setLastName('')
+    setEmail('')
+    setPassword('')
+    setColor('')
+    setPlate('')
+    setCapacity('')
+    setVehicleType('')
+  }
+
+  return (
+    <div className='flex flex-col min-h-screen px-6'>
+
       <img
-      className='w-16 pt-5' 
-      src="https://upload.wikimedia.org/wikipedia/commons/c/cc/Uber_logo_2018.png" alt="" />
-       <FaArrowRightLong size={36} />
-    <form onSubmit={loginFormHandler} className='mt-12 flex flex-col '>
-     <h3 className="text-xl font-bold">What's our Captain's Name</h3>
-     <div className="flex gap-4">
-          <input required onChange={(e)=>{
-                   setFirstName(e.target.value)
-          }} className="rounded pl-3 py-2 bg-gray-200 w-1/2 my-2" type="text" name="" value={firstName} id="" placeholder="First Name" />
-          <input  onChange={(e)=>{
-                   setLastName(e.target.value)
-          }} 
-           className="rounded pl-3 py-2 bg-gray-200 w-1/2 my-2" type="text" name="" id="" value={lastName} placeholder="Last Name"/>
-     </div>
+        className='w-16 pt-5' 
+        src="https://upload.wikimedia.org/wikipedia/commons/c/cc/Uber_logo_2018.png"
+        alt=""
+      />
 
-     <div>
-        <label htmlFor="email" className='text-xl font-bold'>What's our Captain's Email</label>
-        <input required onChange={(e)=>{
-           setEmail(e.target.value)
-        }}  className='rounded pl-3 py-2 bg-gray-200 w-full my-2' type="email" name="" value={email} id="email" placeholder='email@example.com'/>
-     </div>
-     <div className='mt-4'>
-        <label htmlFor="password" className='text-xl font-bold'>Password</label>
-        <input required value={password} onChange={(e)=>{
-           setPassword(e.target.value)
-        }}  className='rounded pl-3 py-2 bg-gray-200 w-full my-2' type="password" name="" id="password" placeholder='password'/>
-     </div>
-     <button type="sumit" className="rounded mt-3 text-xl font-bold bg-black py-3 w-full text-white">Signup</button>
-     <h2 className="text-center mt-3">Already have a account <Link to="/login" className="text-blue-500">Login here</Link></h2>
+      <FaArrowRightLong size={36} />
+
+      <form onSubmit={loginFormHandler} className='mt-12 flex flex-col'>
+
+        <h3 className="text-xl font-bold">Captain Name</h3>
+
+        <div className="flex gap-4">
+          <input 
+            required
+            name="firstname"
+            value={firstName}
+            onChange={handleChange}
+            className="rounded pl-3 py-2 bg-gray-200 w-1/2 my-2"
+            type="text"
+            placeholder="First Name"
+          />
+
+          <input 
+            required
+            name="lastname"
+            value={lastName}
+            onChange={handleChange}
+            className="rounded pl-3 py-2 bg-gray-200 w-1/2 my-2"
+            type="text"
+            placeholder="Last Name"
+          />
+        </div>
+
+        <label className='text-xl font-bold'>Email</label>
+        <input 
+          required
+          name="email"
+          value={email}
+          onChange={handleChange}
+          className='rounded pl-3 py-2 bg-gray-200 w-full my-2'
+          type="email"
+          placeholder='email@example.com'
+        />
+
+        <label className='text-xl font-bold mt-3'>Password</label>
+        <input 
+          required
+          name="password"
+          value={password}
+          onChange={handleChange}
+          className='rounded pl-3 py-2 bg-gray-200 w-full my-2'
+          type="password"
+          placeholder='password'
+        />
+
+        <h3 className="font-bold mt-4">Vehicle Information</h3>
+
+        <div className="grid grid-cols-2 gap-4">
+
+          <input 
+            required
+            name="color"
+            value={color}
+            onChange={handleChange}
+            type="text"
+            placeholder="Color"
+            className="rounded pl-3 py-2 bg-gray-200"
+          />
+
+          <input 
+            required
+            name="plate"
+            value={plate}
+            onChange={handleChange}
+            type="text"
+            placeholder="Plate"
+            className="rounded pl-3 py-2 bg-gray-200"
+          />
+
+          <input 
+            required
+            name="capacity"
+            value={capacity}
+            onChange={handleChange}
+            type="number"
+            placeholder="Capacity"
+            className="rounded pl-3 py-2 bg-gray-200"
+          />
+
+          <select 
+            required
+            name="vehicleType"
+            value={vehicleType}
+            onChange={handleChange}
+            className="rounded pl-3 py-2 bg-gray-200"
+          >
+            <option value="" disabled>Select Vehicle</option>
+            <option value="car">Car</option>
+            <option value="motorcycle">Motorcycle</option>
+            <option value="auto">Auto</option>
+          </select>
+
+        </div>
+
+        <button 
+          type="submit"
+          className="rounded mt-4 text-xl font-bold bg-black py-3 w-full text-white"
+        >
+          Signup
+        </button>
+
+        <h2 className="text-center mt-3">
+          Already have an account 
+          <Link to="/login" className="text-blue-500 ml-1">
+            Login
+          </Link>
+        </h2>
+
       </form>
-     <p className="text-xs leading-tight mt-auto mb-6">
-      This site is protected by <span className="underline">reCAPTCHA</span> and the Google <span  className="underline">Privacy Policy</span> and <span>Terms of Service apply</span>.
-     </p>
     </div>
-
-
-)}
+  )
+}
 
 export default CaptainSignUp
-

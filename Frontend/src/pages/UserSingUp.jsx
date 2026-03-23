@@ -1,33 +1,36 @@
-import { useState } from "react"
-import {Link} from "react-router-dom"
-
+import { useContext, useState } from "react"
+import {Link, useNavigate} from "react-router-dom"
+import axios from "axios"
+import { UserDataContext } from "../context/UserContext"
 const UserSingUp = () => {
     const [email,setEmail] = useState('')
     const [password,setPassword] = useState('')
-    const [userData,setUserData] = useState({})
     const [firstName,setFirstName] = useState('')
     const [lastName,setLastName] = useState('')
-
-  function loginFormHandler(e){
+    const navigate = useNavigate()
+    const {user,setUser} = useContext(UserDataContext)
+ async function loginFormHandler(e){
   e.preventDefault()
-  setUserData({
-    fullName:{
-      firstName:firstName,
-      lastName:lastName
-    },
-    email:email,
-    password:password
-
-  })
+  const newUser = {
+  fullname: {   
+    firstname: firstName,
+    lastname: lastName
+  },
+  email: email,
+  password: password
+}
+  const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/user/register`,newUser) 
+  if(response.status == 200){
+       const data = response.data
+       setUser(data.user)
+       localStorage.setItem('token',data.token)
+       navigate("/home")
+   }  
   setFirstName('')
   setLastName('')
   setEmail('')
   setPassword('')
 }
-
-console.log(userData)
-
-
   return (
  <div className='flex flex-col min-h-screen px-6'>
       <img
@@ -57,7 +60,7 @@ console.log(userData)
            setPassword(e.target.value)
         }}  className='rounded pl-3 py-2 bg-gray-200 w-full my-2' type="password" name="" id="password" placeholder='password'/>
      </div>
-     <button type="sumit" className="rounded mt-3 text-xl font-bold bg-black py-3 w-full text-white">Signup</button>
+     <button type="submit" className="rounded mt-3 text-xl font-bold bg-black py-3 w-full text-white">Create Account</button>
      <h2 className="text-center mt-3">Already have a account <Link to="/login" className="text-blue-500">Login here</Link></h2>
       </form>
      <p className="text-xs leading-tight mt-auto mb-6">
