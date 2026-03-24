@@ -3,23 +3,22 @@ const rideModel = require("../models/ride.model");
 
 
 // 🔹 Fare Function
-const getFare = async (pickup, destination) => {
-    if (!pickup || !destination) {
+const getFare = async (origin, destination) => {
+    if (!origin || !destination) {
         throw new Error("Pickup and destination required");
     }
 
-    const origin = await mapService.getAddressCoordinate(pickup);
-    const dest = await mapService.getAddressCoordinate(destination);
+    const pickup = origin; // 🔥 map karo
+    const dest = destination;
 
-    if (!origin || !dest) {
+    const originCoords = await mapService.getAddressCoordinate(pickup);
+    const destCoords = await mapService.getAddressCoordinate(dest);
+
+    if (!originCoords || !destCoords) {
         throw new Error("Invalid locations");
     }
 
-    const route = await mapService.getDistanceTime(origin, dest);
-
-    if (!route) {
-        throw new Error("Route not found");
-    }
+    const route = await mapService.getDistanceTime(originCoords, destCoords);
 
     const distanceKm = parseFloat(route.distance);
     const durationMin = parseFloat(route.duration);
@@ -35,12 +34,11 @@ const getFare = async (pickup, destination) => {
     for (let type in rates) {
         const r = rates[type];
 
-        const total =
-            r.base +
-            distanceKm * r.perKm +
-            durationMin * r.perMin;
-
-        fare[type] = total.toFixed(2);
+        fare[type] = Number((
+  r.base +
+  distanceKm * r.perKm +
+  durationMin * r.perMin
+).toFixed(2));
     }
 
     return {
@@ -49,7 +47,6 @@ const getFare = async (pickup, destination) => {
         fare
     };
 };
-
 
 const crypto = require("crypto");
 

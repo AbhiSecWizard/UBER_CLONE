@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { FaChevronDown } from "react-icons/fa";
 import LocationSearchPanel from "../components/LocationSearchPanel";
 import RideOptions from "../components/RideOptions";
-
+import axios from "axios"
 const Home = () => {
   const [open, setOpen] = useState(false);
   const [pickup, setPickup] = useState("");
@@ -10,7 +10,7 @@ const Home = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [activeInput, setActiveInput] = useState(""); 
   const [isRideVisible, setIsRideVisible] = useState(false);
-
+  const [fareData, setFareData] = useState(null); // for getfare api
   const cache = useRef({}); 
   const ignoreNextCall = useRef(false);
 
@@ -73,13 +73,53 @@ if (Array.isArray(suggestionData)) {
     }
   }, [pickup, destination, activeInput, fetchSuggestions]);
 
-  const handleFindTrip = (e) => {
-    e.preventDefault();
-    if (pickup && destination) {
-      setOpen(false);
-      setIsRideVisible(true);
+const handleFindTrip = async (e) => {
+  e.preventDefault();
+
+  console.log("🚀 Pickup:", pickup);
+  console.log("🚀 Destination:", destination);
+
+  if (pickup && destination) {
+    await getFare();
+
+    setOpen(false);
+    setIsRideVisible(true);
+  } else {
+    alert("Please enter pickup & destination");
+  }
+};
+
+// get fare api intergration   
+const getFare = async () => {
+  try {
+     if (!pickup || !destination) {
+      console.warn("Pickup or Destination missing");
+      return;
     }
-  };
+
+    const token = localStorage.getItem("token");
+
+    const res = await axios.get(
+      `${import.meta.env.VITE_BASE_URL}/rides/get-fare`,
+      {
+        params: {
+          pickup,
+          destination,
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (res.data.success) {
+      setFareData(res.data.data);
+    }
+
+  } catch (error) {
+    console.error("Axios Fare Error:", error.response?.data || error.message);
+  }
+};
 
   return (
     <div className="h-screen relative overflow-hidden bg-gray-50 font-sans">
@@ -123,7 +163,7 @@ if (Array.isArray(suggestionData)) {
           </div>
 
           {open && pickup && destination && (
-            <button className="w-full bg-black text-white py-4 rounded-2xl font-bold mt-4 active:scale-95 transition">
+            <button disabled={!pickup || !destination} className="w-full bg-black text-white py-4 rounded-2xl font-bold mt-4 active:scale-95 transition">
               Find Trip
             </button>
           )}
@@ -147,6 +187,7 @@ if (Array.isArray(suggestionData)) {
         pickup={isRideVisible ? pickup : ""}
         destination={isRideVisible ? destination : ""}
         setRideVisible={setIsRideVisible}
+        fareData={fareData}
       />
     </div>
   );

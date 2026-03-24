@@ -104,8 +104,13 @@ module.exports.verifyOtp = async (req, res) => {
 
 module.exports.getFare = async (req, res) => {
   try {
+    // ✅ correct query params
     const { pickup, destination } = req.query;
 
+    // 🔍 DEBUG (important)
+    console.log("🔥 Query Data:", req.query);
+
+    // ✅ validation
     if (!pickup || !destination) {
       return res.status(400).json({
         success: false,
@@ -113,6 +118,7 @@ module.exports.getFare = async (req, res) => {
       });
     }
 
+    // 🔥 call service directly
     const fareData = await rideService.getFare(pickup, destination);
 
     res.status(200).json({
@@ -121,6 +127,8 @@ module.exports.getFare = async (req, res) => {
     });
 
   } catch (error) {
+    console.error("Get Fare Error:", error.message);
+
     res.status(500).json({
       success: false,
       message: error.message,

@@ -6,12 +6,12 @@ import {
   FaClock,
   FaRoad,
 } from "react-icons/fa";
-
-
 import { useRef } from 'react';
 import gsap from 'gsap';
 import {useGSAP} from '@gsap/react';
 import CaptainConfirmRidePopUp from "../components/CaptainConfirmRidePopUp";
+import { useContext } from "react";
+import {CaptainDataContext} from "../context/CaptainContext"
 
 
 
@@ -20,7 +20,8 @@ const [online,setOnline] = useState(false)
 // const [offline,setOffline] = useState(false) 
 const panelRef = useRef(null)
 const [confirmRide,setConfirmRide] = useState(false)
-
+const {captain} = useContext(CaptainDataContext)
+console.log("captain name ", captain.fullname)
 useGSAP(()=>{
   if(online){
     gsap.to(panelRef.current,{
@@ -117,7 +118,7 @@ useGSAP(()=>{
         />
 
         <div>
-          <h3 className="font-semibold text-sm">Ravi Kumar</h3>
+          <h3 className="font-semibold text-sm">{captain.fullname.firstname}</h3>
           <p className="text-xs text-gray-500">⭐ 4.8 • Swift Dzire</p>
         </div>
       </div>

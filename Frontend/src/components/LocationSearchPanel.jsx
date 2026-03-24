@@ -7,11 +7,14 @@ const LocationSearchPanel = ({
   activeInput,
   ignoreNextCall,setSuggestions,
 }) => {
+
+
   const getLocationName = (item) => {
-    // 🔥 Check your API response: Is it 'description' or 'display_name'?
-    // Agar aap Google Maps API use kar rahe hain toh 'description' hota hai.
     return item.description || item.display_name || item.name || "Unknown location";
+
   };
+  
+
 
   return (
     <div className="space-y-3 pb-10">
@@ -27,12 +30,11 @@ const LocationSearchPanel = ({
              onClick={() => {
   ignoreNextCall.current = true;
 
-  if (activeInput === "pickup") {
-    setPickup(locationName);
-  } else {
-    setDestination(locationName);
-  }
-
+if (activeInput === "pickup") {
+  setPickup(locationName);
+} else if (activeInput === "destination") {
+  setDestination(locationName);
+}
   setSuggestions([]); // 🔥 hide list
 }}
               className="flex items-center gap-4 p-4 bg-white rounded-xl border border-gray-50 shadow-sm hover:bg-gray-100 cursor-pointer"

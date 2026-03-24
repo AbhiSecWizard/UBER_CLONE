@@ -18,7 +18,7 @@ app.use(cookieParser());
 app.use("/user", userRoutes);
 app.use("/captain", captainRoutes);
 app.use("/maps", mapsRoute);
-app.use("/rides",rideRoute );
+app.use("/rides",rideRoute);
 
 app.get("/", (req, res) => {
     res.send("This is GET function");
