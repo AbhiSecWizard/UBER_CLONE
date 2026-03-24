@@ -43,8 +43,6 @@ setEmail('')
 setPassword('')
 }
 
-
-
   return (
     <div className='flex flex-col px-6'>
       <img
