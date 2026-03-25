@@ -28,6 +28,7 @@ router.post("/end-ride",
     rideController.endRide
 );
 
+
 router.get("/get-fare", authMiddleware.authUser, rideController.getFare);
 
 module.exports = router;
