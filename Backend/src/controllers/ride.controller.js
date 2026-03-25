@@ -1,137 +1,140 @@
 const { validationResult } = require("express-validator");
 const rideService = require("../service/ride.service");
-const rideModel = require("../models/ride.model")
-// 🔥 Create Ride Controller
-module.exports.createRide = async (req, res) => {
-    const errors = validationResult(req);
+const rideModel = require("../models/ride.model");
+const userModel = require("../models/user.model"); // 🔥 Fix: Registering User Schema
+const mapService = require("../service/maps.service");
+const { sendMessageToSocketId } = require("../../socket");
 
-    // ❌ validation error
-    if (!errors.isEmpty()) {
-        return res.status(400).json({
-            success: false,
-            errors: errors.array()
-        });
-    }
+/**
+ * 1. Create New Ride
+ * User side se hit hota hai. 
+ * Nearby captains ko 'new-ride' event bhejta hai.
+ */
+module.exports.createRide = async (req, res) => {
+    const { pickup, destination, vehicleType } = req.body;
+    const user = req.user._id;
 
     try {
-        const { pickup, destination, vehicleType } = req.body;
+        // 1. Ride Create Karo
+        const ride = await rideService.createRide({ user, pickup, destination, vehicleType });
+        
+        // User ko turant response bhej do
+        res.status(201).json({ success: true, data: ride });
 
-        // 🔥 auth middleware se user milega
-        const user = req.user?._id || req.body.userId; // fallback for testing
+        // --- Yahan se Socket aur Location Logic Shuru hota hai ---
+        try {
+            const pickupCoordinates = await mapService.getAddressCoordinate(pickup);
+            
+            // 🔥 Testing ke liye radius 50km ya 5000km kar do agar "Found 0" aa raha hai
+            const captainsInRadius = await mapService.getCaptainsInTheRadius(pickupCoordinates.lat, pickupCoordinates.lng, 50);
 
-        if (!user) {
-            return res.status(401).json({
-                success: false,
-                message: "User not authenticated"
+            // Ride ke saath User ka data populate karo (Popup ke liye zaroori hai)
+            const rideWithUser = await rideModel.findOne({ _id: ride._id }).populate('user');
+
+            console.log(`✅ System: Found ${captainsInRadius.length} captains for this ride.`);
+
+            // 🔥 YE WALA CODE YAHAN JAYEGA
+            captainsInRadius.map(captain => {
+                console.log(`📡 Sending ride to captain: ${captain.fullname.firstname} (ID: ${captain._id})`);
+                
+                sendMessageToSocketId(captain._id.toString(), {
+                    event: 'new-ride', 
+                    data: rideWithUser
+                });
             });
-        }
-        const otpValue =
-         rideService.getOtp(4);
-        console.log("Generate Otp Testing",otpValue)
-        // 🔥 create ride using service
-        const ride = await rideService.createRide({
-            user,
-            pickup,
-            destination,
-            vehicleType,
-            otp:otpValue
-        });
 
-        // ✅ success response
-        res.status(201).json({
-            success: true,
-            message: "Ride created successfully",
-            data: ride
-        });
+        } catch (err) { 
+            console.log("❌ Socket Logic Error:", err.message); 
+        }
 
     } catch (error) {
-        console.error("Create Ride Error:", error.message);
-
-        res.status(500).json({
-            success: false,
-            message: error.message || "Internal server error"
-        });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
-module.exports.verifyOtp = async (req, res) => {
+/**
+ * 2. Confirm Ride
+ * Captain side se hit hota hai jab wo 'Accept' click karta hai.
+ * User ko 'ride-confirmed' event bhejta hai.
+ */
+module.exports.confirmRide = async (req, res) => {
+    const { rideId } = req.body;
     try {
-        const { rideId, otp } = req.body;
+        const ride = await rideService.confirmRide({ rideId, captain: req.captain });
 
-        if (!rideId || !otp) {
-            return res.status(400).json({
-                success: false,
-                message: "Ride ID and OTP required"
-            });
+        // 🔥 FIX: Notifying User via their Room ID
+        sendMessageToSocketId(ride.user._id.toString(), {
+            event: 'ride-confirmed',
+            data: ride
+        });
+
+        return res.status(200).json(ride);
+    } catch (err) {
+        return res.status(500).json({ message: err.message });
+    }
+};
+
+/**
+ * 3. Verify OTP & Start Ride
+ * Captain OTP enter karke ride start karta hai.
+ * User ko 'ride-started' event bhejta hai.
+ */
+module.exports.verifyOtp = async (req, res) => {
+    const { rideId, otp } = req.body;
+    try {
+        const ride = await rideModel.findById(rideId).select("+otp").populate('user').populate('captain');
+        
+        if (!ride || ride.otp !== otp) {
+            return res.status(400).json({ message: "Invalid OTP" });
         }
 
-        // 🔥 otp field hidden hai → select("+otp")
-        const ride = await rideModel.findById(rideId).select("+otp");
-
-        if (!ride) {
-            return res.status(404).json({
-                success: false,
-                message: "Ride not found"
-            });
-        }
-
-        // 🔥 match OTP
-        if (ride.otp !== otp) {
-            return res.status(400).json({
-                success: false,
-                message: "Invalid OTP"
-            });
-        }
-
-        // 🔥 correct → ride start
         ride.status = "ongoing";
-        ride.otp = undefined; // OTP remove for security
+        ride.otp = undefined; // Hide OTP after start
         await ride.save();
 
-        res.status(200).json({
-            success: true,
-            message: "OTP verified, ride started",
+        // 🔥 FIX: Notify User via Room ID
+        sendMessageToSocketId(ride.user._id.toString(), {
+            event: 'ride-started',
             data: ride
         });
 
+        res.status(200).json({ success: true, data: ride });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        res.status(500).json({ message: error.message });
     }
 };
 
-module.exports.getFare = async (req, res) => {
-  try {
-    // ✅ correct query params
-    const { pickup, destination } = req.query;
+/**
+ * 4. End Ride
+ * Captain ride khatam karta hai.
+ * User ko 'ride-ended' bhejta hai payment ke liye.
+ */
+module.exports.endRide = async (req, res) => {
+    const { rideId } = req.body;
+    try {
+        const ride = await rideService.endRide({ rideId, captain: req.captain });
 
-    // 🔍 DEBUG (important)
-    console.log("🔥 Query Data:", req.query);
+        // 🔥 FIX: Notify User via Room ID
+        sendMessageToSocketId(ride.user._id.toString(), {
+            event: 'ride-ended',
+            data: ride
+        });
 
-    // ✅ validation
-    if (!pickup || !destination) {
-      return res.status(400).json({
-        success: false,
-        message: "Pickup and destination required",
-      });
+        return res.status(200).json(ride);
+    } catch (err) {
+        return res.status(500).json({ message: err.message });
     }
+};
 
-    // 🔥 call service directly
-    const fareData = await rideService.getFare(pickup, destination);
-
-    res.status(200).json({
-      success: true,
-      data: fareData,
-    });
-
-  } catch (error) {
-    console.error("Get Fare Error:", error.message);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+/**
+ * 5. Get Fare Suggestions
+ */
+module.exports.getFare = async (req, res) => {
+    const { pickup, destination } = req.query;
+    try {
+        const fareData = await rideService.getFare(pickup, destination);
+        res.status(200).json({ success: true, data: fareData });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 };

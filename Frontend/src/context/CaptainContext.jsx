@@ -10,6 +10,7 @@ const CaptainContext = ({ children }) => {
 
     const fetchCaptainProfile = async () => {
         const token = localStorage.getItem('token');
+        
         if (!token) {
             setIsLoading(false);
             return;
@@ -27,7 +28,10 @@ const CaptainContext = ({ children }) => {
             }
         } catch (err) {
             console.error("Profile fetch error:", err);
-            localStorage.removeItem('token'); // Invalid token ko saaf karo
+            // Agar 401/404 aaye toh token saaf karein
+            if (err.response?.status === 401 || err.response?.status === 404) {
+                localStorage.removeItem('token');
+            }
             setError(err.message);
         } finally {
             setIsLoading(false);
@@ -38,13 +42,7 @@ const CaptainContext = ({ children }) => {
         fetchCaptainProfile();
     }, []);
 
-    const value = {
-        captain,
-        setCaptain,
-        isLoading,
-        setIsLoading,
-        error
-    };
+    const value = { captain, setCaptain, isLoading, setIsLoading, error };
 
     return (
         <CaptainDataContext.Provider value={value}>

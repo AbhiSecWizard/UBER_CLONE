@@ -1,26 +1,32 @@
-const captainModel = require("../models/captain.model")
+const captainModel = require("../models/captain.model");
+
 module.exports.createCaptain = async ({
-    firstname,lastname,email,password,
-    color,plate,capacity,vehicleType
-})=>{
-    if(!firstname || !email || !password || !color || !plate || !capacity || !vehicleType){
-        throw new Error("All fields are required")
+    firstname, lastname, email, password,
+    color, plate, capacity, vehicleType
+}) => {
+    if (!firstname || !email || !password || !color || !plate || !capacity || !vehicleType) {
+        throw new Error("All fields are required");
     }
-    
-    const captain = captainModel.create({
-        fullname:{
+
+    // 🔥 Added await and default location to fix MongoServerError
+    const captain = await captainModel.create({
+        fullname: {
             firstname,
             lastname,
         },
         email,
         password,
-        vehicle:{
+        vehicle: {
             color,
             plate,
             capacity,
             vehicleType
+        },
+        location: {
+            type: 'Point',
+            coordinates: [0, 0] // Default [lng, lat] to prevent indexing error
         }
-    })
+    });
 
- return captain
-}
+    return captain;
+};

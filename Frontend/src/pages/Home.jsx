@@ -1,130 +1,109 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useContext } from "react";
 import { FaChevronDown } from "react-icons/fa";
 import LocationSearchPanel from "../components/LocationSearchPanel";
 import RideOptions from "../components/RideOptions";
-import axios from "axios"
+import axios from "axios";
+import { SocketContext } from "../context/SocketContext";
+import { UserDataContext } from "../context/UserContext";
+import { useNavigate } from "react-router-dom";
+
 const Home = () => {
   const [open, setOpen] = useState(false);
   const [pickup, setPickup] = useState("");
   const [destination, setDestination] = useState("");
   const [suggestions, setSuggestions] = useState([]);
-  const [activeInput, setActiveInput] = useState(""); 
+  const [activeInput, setActiveInput] = useState("");
   const [isRideVisible, setIsRideVisible] = useState(false);
-  const [fareData, setFareData] = useState(null); // for getfare api
-  const cache = useRef({}); 
-  const ignoreNextCall = useRef(false);
+  const [fareData, setFareData] = useState(null);
+  const [ride, setRide] = useState(null); // Live ride data
 
-  // 🔥 Optimized Suggestion Fetcher
+  const cache = useRef({});
+  const ignoreNextCall = useRef(false);
+  const navigate = useNavigate();
+
+  const { sendMessage, receiveMessage } = useContext(SocketContext);
+  const { user } = useContext(UserDataContext);
+
+  useEffect(() => {
+    if (user?._id) {
+      sendMessage("join", { userId: user._id, userType: 'user' });
+    }
+  }, [user, sendMessage]);
+
+  useEffect(() => {
+    // 1. Jab Captain ride confirm kare
+    receiveMessage('ride-confirmed', (data) => {
+      setRide(data);
+      setIsRideVisible(false); // Ride options band karo
+      // Yahan aap 'WaitingForDriver' popup ko 'DriverFound' mein switch kar sakte ho
+    });
+
+    // 2. Jab Ride start ho jaye (OTP verify hone ke baad)
+    receiveMessage('ride-started', (data) => {
+      navigate('/riding', { state: { ride: data } });
+    });
+  }, [receiveMessage, navigate]);
+
   const fetchSuggestions = useCallback(async (input) => {
     if (!input || input.length < 3 || ignoreNextCall.current) {
-      ignoreNextCall.current = false; 
+      ignoreNextCall.current = false;
       return;
     }
-
-    // Cache logic is good, keep it
     if (cache.current[input]) {
       setSuggestions(cache.current[input]);
       return;
     }
-
-    console.log("🚀 Fetching from API:", input); // Console check karein
-
     try {
       const token = localStorage.getItem("token");
       const res = await fetch(
         `${import.meta.env.VITE_BASE_URL}/maps/get-suggestions?input=${encodeURIComponent(input)}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
-      // Agar 429 aa raha hai, toh res.ok false hoga
-      if (res.status === 429) {
-          console.error("⛔ Rate limited! Backend is blocking us.");
-          return;
-      }
-
       const data = await res.json();
-
-console.log("API RESPONSE:", data);
-
-// ✅ correct extraction
-const suggestionData = data.data || [];
-
-if (Array.isArray(suggestionData)) {
-  setSuggestions([...suggestionData]); // 🔥 force re-render
-  cache.current[input] = suggestionData;
-}
+      const suggestionData = data.data || [];
+      if (Array.isArray(suggestionData)) {
+        setSuggestions([...suggestionData]);
+        cache.current[input] = suggestionData;
+      }
     } catch (error) {
-      console.error("Error in getAutoSuggestions:", error);
+      console.error("Error fetching suggestions:", error);
     }
-}, []);
+  }, []);
 
-  // 🔥 Strict Debouncing logic
   useEffect(() => {
     const targetValue = activeInput === "pickup" ? pickup : destination;
-
     if (targetValue.length >= 3) {
-      const delayDebounceFn = setTimeout(() => {
-        fetchSuggestions(targetValue);
-      }, 700); 
-
+      const delayDebounceFn = setTimeout(() => fetchSuggestions(targetValue), 700);
       return () => clearTimeout(delayDebounceFn);
-    } else {
-      setSuggestions([]);
     }
+    setSuggestions([]);
   }, [pickup, destination, activeInput, fetchSuggestions]);
 
-const handleFindTrip = async (e) => {
-  e.preventDefault();
-
-  console.log("🚀 Pickup:", pickup);
-  console.log("🚀 Destination:", destination);
-
-  if (pickup && destination) {
-    await getFare();
-
-    setOpen(false);
-    setIsRideVisible(true);
-  } else {
-    alert("Please enter pickup & destination");
-  }
-};
-
-// get fare api intergration   
-const getFare = async () => {
-  try {
-     if (!pickup || !destination) {
-      console.warn("Pickup or Destination missing");
-      return;
+  const handleFindTrip = async (e) => {
+    e.preventDefault();
+    if (pickup && destination) {
+      await getFare();
+      setOpen(false);
+      setIsRideVisible(true);
     }
+  };
 
-    const token = localStorage.getItem("token");
-
-    const res = await axios.get(
-      `${import.meta.env.VITE_BASE_URL}/rides/get-fare`,
-      {
-        params: {
-          pickup,
-          destination,
-        },
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    if (res.data.success) {
-      setFareData(res.data.data);
+  const getFare = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get(`${import.meta.env.VITE_BASE_URL}/rides/get-fare`, {
+        params: { pickup, destination },
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.data.success) setFareData(res.data.data);
+    } catch (error) {
+      console.error("Fare Error:", error.message);
     }
-
-  } catch (error) {
-    console.error("Axios Fare Error:", error.response?.data || error.message);
-  }
-};
+  };
 
   return (
-    <div className="h-screen relative overflow-hidden bg-gray-50 font-sans">
+    <div className="h-screen relative overflow-hidden bg-gray-50">
       <img className="w-16 absolute left-5 top-5 z-20" src="https://upload.wikimedia.org/wikipedia/commons/c/cc/Uber_logo_2018.png" alt="Uber" />
-      
       <img src="https://thumbs.dreamstime.com/b/driving-small-car-map-paris-showing-roads-landmarks-travel-planning-green-toy-placed-detailed-features-439522277.jpg" className="h-full w-full object-cover opacity-80" alt="Map" />
 
       <div className={`absolute w-full bg-white p-6 rounded-t-3xl transition-all duration-500 z-30 shadow-2xl ${open ? "bottom-0 h-full" : "bottom-0 h-[30%]"}`}>
@@ -138,57 +117,41 @@ const getFare = async () => {
         </div>
 
         <form onSubmit={handleFindTrip} className="space-y-3 relative">
-          <div className="relative">
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-black"></div>
-            <input
-              value={pickup}
-              onChange={(e) => { setPickup(e.target.value); setActiveInput("pickup"); ignoreNextCall.current = false; }}
-              onFocus={() => { setOpen(true); setIsRideVisible(false); }}
-              type="text"
-              placeholder="Add a pick-up location"
-              className="rounded-xl pl-12 py-4 bg-gray-100 w-full outline-none focus:ring-2 ring-black/10 transition-all"
-            />
-          </div>
-
-          <div className="relative">
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 w-2 h-2 bg-black"></div>
-            <input
-              value={destination}
-              onChange={(e) => { setDestination(e.target.value); setActiveInput("destination"); ignoreNextCall.current = false; }}
-              onFocus={() => { setOpen(true); setIsRideVisible(false); }}
-              type="text"
-              placeholder="Enter your destination"
-              className="rounded-xl pl-12 py-4 bg-gray-100 w-full outline-none focus:ring-2 ring-black/10 transition-all"
-            />
-          </div>
-
+          <input
+            value={pickup}
+            onChange={(e) => { setPickup(e.target.value); setActiveInput("pickup"); }}
+            onFocus={() => { setOpen(true); setIsRideVisible(false); }}
+            type="text" placeholder="Add a pick-up location"
+            className="rounded-xl pl-12 py-4 bg-gray-100 w-full outline-none"
+          />
+          <input
+            value={destination}
+            onChange={(e) => { setDestination(e.target.value); setActiveInput("destination"); }}
+            onFocus={() => { setOpen(true); setIsRideVisible(false); }}
+            type="text" placeholder="Enter your destination"
+            className="rounded-xl pl-12 py-4 bg-gray-100 w-full outline-none"
+          />
           {open && pickup && destination && (
-            <button disabled={!pickup || !destination} className="w-full bg-black text-white py-4 rounded-2xl font-bold mt-4 active:scale-95 transition">
-              Find Trip
-            </button>
+            <button className="w-full bg-black text-white py-4 rounded-2xl font-bold mt-4">Find Trip</button>
           )}
         </form>
 
         {open && (
           <div className="h-[60vh] overflow-y-auto mt-6">
-            <LocationSearchPanel
-              suggestions={suggestions}
-  setPickup={setPickup}
-  setDestination={setDestination}
-  activeInput={activeInput}
-  ignoreNextCall={ignoreNextCall}
-  setSuggestions={setSuggestions}  
-            />
+            <LocationSearchPanel suggestions={suggestions} setPickup={setPickup} setDestination={setDestination} activeInput={activeInput} ignoreNextCall={ignoreNextCall} setSuggestions={setSuggestions} />
           </div>
         )}
       </div>
 
-      <RideOptions
-        pickup={isRideVisible ? pickup : ""}
-        destination={isRideVisible ? destination : ""}
-        setRideVisible={setIsRideVisible}
-        fareData={fareData}
-      />
+      <RideOptions pickup={isRideVisible ? pickup : ""} destination={isRideVisible ? destination : ""} setRideVisible={setIsRideVisible} fareData={fareData} />
+      
+      {/* Agar ride confirm ho jaye toh yahan OTP aur Driver info dikhayein */}
+      {ride && (
+        <div className="fixed bottom-0 w-full bg-white p-6 z-40 rounded-t-3xl shadow-2xl border-t">
+           <h3 className="font-bold text-lg">Driver is coming! OTP: <span className="text-blue-600">{ride.otp}</span></h3>
+           <p className="text-sm text-gray-500">Captain: {ride.captain.fullname.firstname}</p>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,31 +1,43 @@
-const express = require("express")
-const router = express.Router()
-const {body} = require("express-validator")
-const captainController = require("../controllers/captain.controller")
-const authCaptain = require("../middlewares/auth.middleware")
+const express = require("express");
+const router = express.Router();
+const { body } = require("express-validator");
+const captainController = require("../controllers/captain.controller");
+const authMiddleware = require("../middlewares/auth.middleware");
 
-router.post('/register',[
+// 1. Captain Registration
+router.post('/register', [
     body('email').isEmail().withMessage("Invalid Email"),
-    body('fullname.firstname').isLength({min:3}).withMessage('First name must be at least 3 characters'),
-    body('password').isLength({min:6}).withMessage("Password must be at least 6 character"),
-    body('vehicle.color').isLength({min:3}).withMessage("Color must be at least 3 character "),
-    body('vehicle.plate').isLength({min:3}).withMessage("plate number must be at least 3 character "),
-    body('vehicle.capacity').isInt({min:1}).withMessage("Capacity must be at least 1 "),
-    body('vehicle.vehicleType').isIn(['car','motorcycle','auto']).withMessage('Invalid Vehicle Type')
+    body('fullname.firstname').isLength({ min: 3 }).withMessage('First name must be at least 3 characters'),
+    body('password').isLength({ min: 6 }).withMessage("Password must be at least 6 characters"),
+    body('vehicle.color').isLength({ min: 3 }).withMessage("Color must be at least 3 characters"),
+    body('vehicle.plate').isLength({ min: 3 }).withMessage("Plate number must be at least 3 characters"),
+    body('vehicle.capacity').isInt({ min: 1 }).withMessage("Capacity must be at least 1"),
+    body('vehicle.vehicleType').isIn(['car', 'motorcycle', 'auto']).withMessage('Invalid Vehicle Type')
 ],
-captainController.registerCaptain
-)
-router.post('/login',[
+    captainController.registerCaptain
+);
+
+// 2. Captain Login
+router.post('/login', [
     body('email').isEmail().withMessage("Invalid Email"),
-    body('password').isLength({min:6}).withMessage("password must be at least 6 character")
+    body('password').isLength({ min: 6 }).withMessage("Password must be at least 6 characters")
 ],
-captainController.loginCaptain
-)
+    captainController.loginCaptain
+);
 
-router.get('/profile',authCaptain.authCaptain,captainController.getCaptainProfile)
-router.get('/logout',authCaptain.authCaptain,captainController.logoutCaptain)
+// 3. Get Captain Profile
+router.get('/profile', authMiddleware.authCaptain, captainController.getCaptainProfile);
 
+// 4. Logout Captain
+router.get('/logout', authMiddleware.authCaptain, captainController.logoutCaptain);
 
-module.exports = router 
+// 🔥 5. Update Status (FIX: Isse captain online/offline ho payega)
+router.patch('/update-status', 
+    authMiddleware.authCaptain, 
+    [
+        body('status').isIn(['active', 'inactive']).withMessage('Invalid status')
+    ],
+    captainController.updateStatus
+);
 
-
+module.exports = router;
