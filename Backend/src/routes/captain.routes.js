@@ -40,4 +40,9 @@ router.patch('/update-status',
     captainController.updateStatus
 );
 
+// captain.routes.js
+// router.patch('/update-status', authCaptain, captainController.updateStatus);
+router.patch('/update-location', authMiddleware.authCaptain, captainController.updateLocation); // Ye add karein
+
+
 module.exports = router;

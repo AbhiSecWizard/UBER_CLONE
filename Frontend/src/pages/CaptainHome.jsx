@@ -33,34 +33,67 @@ const CaptainHome = () => {
         };
         updateStatus();
     }, [online, captain]);
+    // CaptainHome.jsx ke andar updateLocation function
+const updateLocation = () => {
+    if (navigator.geolocation && online) {
+        navigator.geolocation.getCurrentPosition(async (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
 
-    // 2. Socket Logic
-    useEffect(() => {
-        if (!captain?._id) return;
+            // A. Socket ke liye (Live Tracking)
+            sendMessage('update-location-captain', {
+                userId: captain._id,
+                location: { lat, lng }
+            });
 
-        sendMessage('join', { userId: captain._id, userType: 'captain' });
-
-        const updateLocation = () => {
-            if (navigator.geolocation && online) {
-                navigator.geolocation.getCurrentPosition((position) => {
-                    sendMessage('update-location-captain', {
-                        userId: captain._id,
-                        location: { lat: position.coords.latitude, lng: position.coords.longitude }
-                    });
+            // B. Database ke liye (Permanent Storage)
+            try {
+                await axios.patch(`${import.meta.env.VITE_BASE_URL}/captain/update-location`, {
+                    location: { lat, lng }
+                }, {
+                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
                 });
+            } catch (err) {
+                console.log("DB Location Update Error:", err.message);
             }
-        };
-
-        const locationInterval = setInterval(updateLocation, 10000);
-        updateLocation();
-
-        receiveMessage('new-ride', (data) => {
-            setRideData(data);
-            setConfirmRide(true);
         });
+    }
+};
 
-        return () => clearInterval(locationInterval);
-    }, [captain, online, sendMessage, receiveMessage]);
+// 2. Socket Logic + Periodic Location Update
+useEffect(() => {
+if (!captain?._id) return;
+
+// Server join karein
+sendMessage('join', { userId: captain._id, userType: 'captain' });
+
+// 🔥 Pehli baar call karne ke liye jab page load ho ya online ho
+if (online) {
+updateLocation();
+}
+
+// 🔥 Har 10 second mein call karne ke liye
+ const locationInterval = setInterval(() => {
+ if (online) {
+ updateLocation();
+ }
+ }, 10000);
+
+ // Nayi ride ka listener
+ receiveMessage('new-ride', (data) => {
+ setRideData(data);
+ setConfirmRide(true);
+ });
+
+ // Cleanup function
+return () => {
+ clearInterval(locationInterval);
+ };
+    }, [captain, online,sendMessage,receiveMessage]); // 👈 'online' yahan hona zaroori hai
+
+
+
+
 
     // 🔥 Fix: Accept Ride Function (Ye missing tha isliye error aa raha tha)
     const acceptRide = async () => {

@@ -27,6 +27,26 @@ module.exports.registerCaptain = async (req,res,next)=>{
     const token = captain.generateAuthToken() 
     return res.status(201).json({token,captain})
 }
+// Captain.controller.js mein add karein
+module.exports.updateLocation = async (req, res) => {
+    try {
+        const { location } = req.body; // { lat, lng } aayega frontend se
+        const captain = await captainModel.findByIdAndUpdate(
+            req.captain._id,
+            {
+                location: {
+                    type: 'Point',
+                    coordinates: [location.lng, location.lat] // GeoJSON: [long, lat]
+                }
+            },
+            { new: true }
+        );
+        res.status(200).json(captain);
+    } catch (err) {
+        res.status(500).json({ message: "Location update failed" });
+    }
+};
+
 
 module.exports.loginCaptain = async(req,res,next)=>{
     const errors = validationResult(req)
