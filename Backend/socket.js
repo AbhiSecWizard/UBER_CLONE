@@ -7,41 +7,52 @@ let io;
 const initializeSocket = (server) => {
     io = socketIo(server, {
         cors: {
-            origin: "http://localhost:5173", 
+            origin: "*", // Testing ke liye fast, production mein specific URL rakhein
             methods: ['GET', 'POST'],
             credentials: true
-        },
-        transports: ['websocket', 'polling'] 
+        }
     });
 
     io.on('connection', (socket) => {
+        console.log(`New Connection: ${socket.id}`);
+
         socket.on('join', async (data) => {
             const { userId, userType } = data;
-            if (!userId || !userType) return;
 
+            if (!userId || !userType) {
+                console.log("❌ Join failed: Missing userId or userType");
+                return;
+            }
+
+            // Room join karwana (UserId hi room name hai)
             socket.join(userId);
+            console.log(`👤 User ${userId} joined room. Type: ${userType}`);
 
             try {
                 if (userType === 'user') {
-                    await userModel.findByIdAndUpdate(userId, 
+                    const updatedUser = await userModel.findByIdAndUpdate(userId, 
                         { socketId: socket.id }, 
-                        { returnDocument: 'after' } // 🔥 Warning Fixed
+                        { new: true } 
                     );
+                    console.log(`✅ User DB Updated: ${updatedUser._id}`);
                 } else if (userType === 'captain') {
-                    await captainModel.findByIdAndUpdate(userId, 
+                    const updatedCaptain = await captainModel.findByIdAndUpdate(userId, 
                         { socketId: socket.id }, 
-                        { returnDocument: 'after' } // 🔥 Warning Fixed
+                        { new: true }
                     );
+                    console.log(`✅ Captain DB Updated: ${updatedCaptain._id}`);
                 }
-            } catch (err) { console.log("DB Update Error:", err.message); }
+            } catch (err) {
+                console.error("❌ DB Update Error:", err.message);
+            }
         });
 
         socket.on('disconnect', async () => {
-            // 🔥 Warning Fixed: findOneAndUpdate mein bhi 'returnDocument' dalo
+            console.log(`🔌 Disconnected: ${socket.id}`);
+            // Captain ko inactive mark karna
             await captainModel.findOneAndUpdate(
                 { socketId: socket.id }, 
-                { status: 'inactive' },
-                { returnDocument: 'after' } 
+                { status: 'inactive' }
             );
         });
     });
@@ -49,7 +60,7 @@ const initializeSocket = (server) => {
 
 const sendMessageToSocketId = (targetId, messageObject) => {
     if (io) {
-        // targetId yahan Captain/User ki Database ID honi chahiye
+        // targetId yahan Database ki _id hai kyunki humne socket us room mein join karwaya hai
         io.to(targetId).emit(messageObject.event, messageObject.data);
     }
 };
